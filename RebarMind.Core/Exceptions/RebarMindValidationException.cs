@@ -2,8 +2,8 @@ namespace RebarMind.Core;
 
 public enum ErrorSeverity
 {
-    Blocker,   // ❌ Must fix before transaction
-    Warning    // ⚠️ Can proceed with caution
+    Warning,   // ⚠ Can proceed with caution — shown to user but doesn't block
+    Blocker    // ❌ Cannot proceed — must be resolved before Generate
 }
 
 /// <summary>

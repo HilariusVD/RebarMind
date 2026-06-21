@@ -12,6 +12,10 @@ public sealed record BarLayout
     public required double HostLength { get; init; }
     public required double HostWidth { get; init; }
     public required double HostHeight { get; init; }
+
+    // NEW: Config snapshot untuk BBS export (Tahap 4)
+    public required string ConfigSnapshot { get; init; }
+    public required string CodeProfileUsed { get; init; }
 }
 
 public sealed record BarSegment
@@ -31,3 +35,4 @@ public sealed record StirrupZone
     public required double Spacing { get; init; }
     public required int StirrupCount { get; init; }
 }
+

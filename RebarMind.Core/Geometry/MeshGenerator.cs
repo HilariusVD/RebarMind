@@ -1,3 +1,4 @@
+using System.Text.Json;
 using RebarMind.Core.Config;
 
 namespace RebarMind.Core.Geometry;
@@ -28,7 +29,9 @@ public sealed class MeshGenerator : IMeshGenerator
             Zones = zones,
             HostWidth = hostWidth,
             HostHeight = hostHeight,
-            HostLength = hostLength
+            HostLength = hostLength,
+            ConfigSnapshot = JsonSerializer.Serialize(config),
+            CodeProfileUsed = config.ActiveCodeProfile
         };
     }
 
@@ -129,7 +132,7 @@ public sealed class MeshGenerator : IMeshGenerator
 
         // Bottom support zone
         var bottomZone = CreateStirrupZone(
-            "Bottom Support", 0, supportLength, cfg.Stirrups.SpacingAtSupport, cfg.Stirrups.Diameter, w, h);
+            "Bottom Support", 0, supportLength, cfg.Stirrups.SpacingAtSupport, cfg.Stirrups.Diameter, w, h, cfg);
         zones.Add(bottomZone.Zone);
         stirrups.AddRange(bottomZone.Stirrups);
 
@@ -137,14 +140,14 @@ public sealed class MeshGenerator : IMeshGenerator
         if (midEnd > midStart)
         {
             var midZone = CreateStirrupZone(
-                "Mid", midStart, midEnd, cfg.Stirrups.SpacingAtMid, cfg.Stirrups.Diameter, w, h);
+                "Mid", midStart, midEnd, cfg.Stirrups.SpacingAtMid, cfg.Stirrups.Diameter, w, h, cfg);
             zones.Add(midZone.Zone);
             stirrups.AddRange(midZone.Stirrups);
         }
 
         // Top support zone
         var topZone = CreateStirrupZone(
-            "Top Support", L - supportLength, L, cfg.Stirrups.SpacingAtSupport, cfg.Stirrups.Diameter, w, h);
+            "Top Support", L - supportLength, L, cfg.Stirrups.SpacingAtSupport, cfg.Stirrups.Diameter, w, h, cfg);
         zones.Add(topZone.Zone);
         stirrups.AddRange(topZone.Stirrups);
 
@@ -152,7 +155,7 @@ public sealed class MeshGenerator : IMeshGenerator
     }
 
     private (List<BarSegment> Stirrups, StirrupZone Zone) CreateStirrupZone(
-        string name, double startZ, double endZ, double spacing, double dia, double w, double h)
+        string name, double startZ, double endZ, double spacing, double dia, double w, double h, RebarMindConfig cfg)
     {
         var stirrups = new List<BarSegment>();
         double zoneLength = endZ - startZ;
@@ -166,8 +169,8 @@ public sealed class MeshGenerator : IMeshGenerator
             double z = startZ + i * spacing;
             if (z > endZ + 0.1) break; // tolerance 0.1mm
 
-            // Simplified: represent stirrup as 4 segments (rectangular perimeter)
-            double cover = 20; // stirrup cover (outer)
+            // FIX: Use config value instead of hardcoded 20mm
+            double cover = cfg.Cover.Side;
             double hw = w / 2.0 - cover;
             double hh = h / 2.0 - cover;
 
