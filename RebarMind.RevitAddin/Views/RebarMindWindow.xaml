@@ -1,0 +1,282 @@
+<Window x:Class="RebarMind.RevitAddin.Views.RebarMindWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="RebarMind v2.0 — Column Reinforcement"
+        Width="520" Height="680"
+        WindowStyle="ToolWindow"
+        ResizeMode="CanResizeWithGrip"
+        Background="#F5F5F5"
+        FontFamily="Segoe UI" FontSize="12">
+
+    <Window.Resources>
+        <!-- Shared Styles -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#1A1A2E"/>
+            <Setter Property="Margin" Value="0,12,0,6"/>
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style x:Key="InputBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Height" Value="26"/>
+        </Style>
+        <Style x:Key="Combo" TargetType="ComboBox">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== HOST INFO BAR ===== -->
+        <Border Grid.Row="0" Background="#E8F0FE" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+            <TextBlock Text="{Binding HostInfo}" FontWeight="SemiBold" Foreground="#174EA6"/>
+        </Border>
+
+        <!-- ===== TAB CONTROL ===== -->
+        <TabControl Grid.Row="1" Margin="0,0,0,8">
+
+            <!-- ==================== TAB 1: GEOMETRY & COVER ==================== -->
+            <TabItem Header="Geometry &amp; Cover">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                    <StackPanel>
+
+                        <!-- Cover Settings -->
+                        <TextBlock Text="▶ COVER SETTINGS" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="{Binding ActivePresetName, StringFormat='JSON Preset: {0}'}"
+                                   FontSize="11" Foreground="Gray" Margin="0,0,0,8"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Top Cover:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding TopCover, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Bottom Cover:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding BottomCover, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Side Cover:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding SideCover, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <CheckBox  Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Content="🔗 Link All Covers"
+                                       IsChecked="{Binding LinkAllCovers}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- Preset Buttons -->
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="📂 Load Preset..." Padding="12,4" Margin="0,0,8,0"
+                                    Click="OnLoadPresetClicked"/>
+                            <Button Content="💾 Save Preset" Padding="12,4"
+                                    Click="OnSavePresetClicked"/>
+                            <Button Content="🔄 Reset" Padding="12,4" Margin="8,0,0,0"
+                                    Command="{Binding ResetDefaultsCommand}"/>
+                        </StackPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ==================== TAB 2: MAIN BARS ==================== -->
+            <TabItem Header="Main Bars">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                    <StackPanel>
+
+                        <TextBlock Text="▶ MAIN REINFORCEMENT (Longitudinal)" Style="{StaticResource SectionHeader}"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Rebar Dia:" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="1" Style="{StaticResource Combo}"
+                                       SelectedItem="{Binding MainBarDiameter}">
+                                <ComboBoxItem Content="D13"/>
+                                <ComboBoxItem Content="D16"/>
+                                <ComboBoxItem Content="D19"/>
+                                <ComboBoxItem Content="D22"/>
+                                <ComboBoxItem Content="D25"/>
+                                <ComboBoxItem Content="D29"/>
+                                <ComboBoxItem Content="D32"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Shape Code:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding MainBarShapeCode}" Style="{StaticResource InputBox}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Layout Rule:" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox  Grid.Row="2" Grid.Column="1" Style="{StaticResource Combo}"
+                                       SelectedItem="{Binding LayoutRule}">
+                                <ComboBoxItem Content="FixedNumber"/>
+                                <ComboBoxItem Content="MaxSpacing"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Nx (X-Axis):" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="3" Grid.Column="1" Text="{Binding Nx, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="2" Text="bars" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Ny (Y-Axis):" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" Text="{Binding Ny, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="2" Text="bars" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Total Bars:" Style="{StaticResource FieldLabel}" FontWeight="Bold"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" FontWeight="Bold" Foreground="#0D47A1">
+                                <Run Text="{Binding TotalBars, Mode=OneWay}"/>
+                                <Run Text=" bars (Auto)"/>
+                            </TextBlock>
+                        </Grid>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ==================== TAB 3: STIRRUPS & SPLICE ==================== -->
+            <TabItem Header="Stirrups &amp; Splice">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                    <StackPanel>
+
+                        <!-- Stirrups -->
+                        <TextBlock Text="▶ TIES / STIRRUPS (Transversal)" Style="{StaticResource SectionHeader}"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Rebar Dia:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding StirrupDiameter}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Shape Code:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding StirrupShapeCode}" Style="{StaticResource InputBox}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Support Zones:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding SupportZoneExpression}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="expression" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="Gray" FontSize="10"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Spacing @ Support:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="3" Grid.Column="1" Text="{Binding SpacingAtSupport}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Spacing @ Mid:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" Text="{Binding SpacingAtMid}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <CheckBox  Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Content="➕ Add Cross-Ties (Links)"
+                                       IsChecked="{Binding EnableCrossTies}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- Splicing -->
+                        <TextBlock Text="▶ SPLICING &amp; STARTERS" Style="{StaticResource SectionHeader}"/>
+
+                        <CheckBox Content="Enable Auto-Split" IsChecked="{Binding EnableAutoSplit}" Margin="0,0,0,4"/>
+
+                        <Grid Margin="20,0,0,0" IsEnabled="{Binding EnableAutoSplit}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="32"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Max Stock Length:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding MaxStockLength}" Style="{StaticResource InputBox}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Splice Type:" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox  Grid.Row="1" Grid.Column="1" Style="{StaticResource Combo}"
+                                       SelectedItem="{Binding SpliceType}">
+                                <ComboBoxItem Content="LapSplice"/>
+                                <ComboBoxItem Content="MechanicalCoupler"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Lap Multiplier:" Style="{StaticResource FieldLabel}"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding LapMultiplier}" Style="{StaticResource InputBox}"/>
+                        </Grid>
+
+                        <CheckBox Content="Enable Staggering (50% Offset)" IsChecked="{Binding EnableStaggering}" Margin="0,8,0,0"/>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- ===== BOTTOM BAR ===== -->
+        <Border Grid.Row="2" Background="#E0E0E0" CornerRadius="4" Padding="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Status + Live Preview -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="Gray"/>
+                    <CheckBox Content="👁 Live Preview" IsChecked="{Binding IsLivePreviewEnabled}"
+                              FontSize="11" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <!-- Buttons -->
+                <Button Grid.Column="1" Content="Cancel" Padding="16,6" Margin="0,0,8,0"
+                        Click="OnCancelClicked"/>
+                <Button Grid.Column="2" Content="🚀 GENERATE" Padding="16,6"
+                        FontWeight="Bold" Background="#1565C0" Foreground="White"
+                        Click="OnGenerateClicked"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>
