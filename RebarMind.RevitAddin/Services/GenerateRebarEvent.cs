@@ -1,21 +1,24 @@
-using Autodesk.Revit.DB;
+﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RebarMind.Core;
+using RebarMind.Core.Codes;
 using RebarMind.Core.Config;
 using RebarMind.Core.Geometry;
 using RebarMind.RevitAddin.ViewModels;
 using System;
+using System.Linq;
 
 namespace RebarMind.RevitAddin.Services;
 
 /// <summary>
 /// ExternalEvent handler — jembatan aman dari UI thread ke Revit API thread.
-/// Semua operasi Revit API WAJIB lewat sini (§9 PRD).
+/// Implementasi lengkap dengan TransactionManager dan RebarCreator (§9, §10 PRD).
 /// </summary>
 public class GenerateRebarEvent : IExternalEventHandler
 {
     private readonly MeshGenerator _meshGenerator = new();
     private readonly ConfigLoader _configLoader = new();
+    private readonly SNI2847Profile _codeProfile = new();
 
     public void Execute(UIApplication app)
     {
@@ -24,11 +27,9 @@ public class GenerateRebarEvent : IExternalEventHandler
 
         try
         {
-            // 1. Ambil config dari ViewModel
             var viewModel = RebarMindViewModel.Instance;
             RebarMindConfig config = viewModel.ToConfig();
 
-            // 2. Ambil elemen yang dipilih
             var selectedIds = uidoc.Selection.GetElementIds();
             if (selectedIds.Count == 0)
             {
@@ -38,46 +39,48 @@ public class GenerateRebarEvent : IExternalEventHandler
 
             Element host = doc.GetElement(selectedIds.First());
 
-            // 3. Extract dimensi host (simplified — full extraction di Tahap 3)
-            double hostWidth = 600;    // TODO: Extract dari parameter Revit
-            double hostHeight = 600;   // TODO: Extract dari parameter Revit
-            double hostLength = 3000;  // TODO: Extract dari parameter Revit
+            var hostDimensions = ExtractHostDimensions(host);
+            double hostWidth = hostDimensions.Width;
+            double hostHeight = hostDimensions.Height;
+            double hostLength = hostDimensions.Length;
 
-            // 4. Generate layout (pure logic, NO Revit API)
             BarLayout layout = _meshGenerator.GenerateColumnLayout(
                 hostWidth, hostHeight, hostLength, config);
 
-            // 5. §9 TransactionGroup — Atomic Generate
-            using var tg = new TransactionGroup(doc, "RebarMind: Generate Column Rebar");
-            tg.Start();
+            var validator = new GeometryValidator(_codeProfile);
+            validator.Validate(layout, config);
 
-            try
+            int totalCreated = 0;
+
+            using (var txManager = new TransactionManager(doc, "RebarMind: Generate Column Rebar"))
             {
-                // TODO Tahap 3: Sub-transactions
-                // Transaction 1: Purge existing rebar (if Overwrite)
-                // Transaction 2: Generate main bars via Rebar.Create()
-                // Transaction 3: Generate stirrups via Rebar.Create()
-                // Transaction 4: Write BBS parameters
+                try
+                {
+                    var rebarCreator = new RebarCreator(doc);
+                    totalCreated = rebarCreator.CreateRebar(layout, config, host);
 
-                // Placeholder: show result
-                tg.Assimilate(); // Commit semua sebagai 1 undo step
+                    txManager.Commit();
 
-                TaskDialog.Show("RebarMind - Success",
-                    $"Generated for: {viewModel.HostInfo}\n\n" +
-                    $"Main Bars: {layout.MainBars.Count}\n" +
-                    $"Stirrup Segments: {layout.Stirrups.Count}\n" +
-                    $"Zones: {layout.Zones.Count}\n" +
-                    $"Code Profile: {layout.CodeProfileUsed}");
-            }
-            catch
-            {
-                tg.RollBack(); // §9.2: Rollback di setiap path exception
-                throw;
+                    TaskDialog.Show("RebarMind - Success",
+                        $"✅ Successfully generated rebar for: {viewModel.HostInfo}\n\n" +
+                        $"Main Bars: {layout.MainBars.Count}\n" +
+                        $"Stirrup Segments: {layout.Stirrups.Count}\n" +
+                        $"Zones: {layout.Zones.Count}\n" +
+                        $"Code Profile: {layout.CodeProfileUsed}\n" +
+                        $"Total Rebar Created: {totalCreated}");
+                }
+                catch (Exception ex)
+                {
+                    txManager.RollBack();
+                    throw new RebarMindValidationException(
+                        $"Failed to create rebar: {ex.Message}",
+                        ErrorSeverity.Blocker,
+                        ex);
+                }
             }
         }
         catch (RebarMindValidationException ex)
         {
-            // §7.3: User-friendly error, bukan stack trace
             string icon = ex.Severity == ErrorSeverity.Blocker ? "❌" : "⚠️";
             TaskDialog.Show("RebarMind - Validation Error",
                 $"{icon} {ex.Message}\n\nSeverity: {ex.Severity}");
@@ -88,6 +91,25 @@ public class GenerateRebarEvent : IExternalEventHandler
                 $"An unexpected error occurred:\n\n{ex.Message}\n\n" +
                 $"See log at: %APPDATA%/RebarMind/logs/");
         }
+    }
+
+    private (double Width, double Height, double Length) ExtractHostDimensions(Element host)
+    {
+        double width = GetParameterValue(host, "Width") ?? 600;
+        double height = GetParameterValue(host, "Height") ?? 600;
+        double length = GetParameterValue(host, "Length") ?? 3000;
+
+        double feetToMm = 304.8;
+
+        return (width * feetToMm, height * feetToMm, length * feetToMm);
+    }
+
+    private double? GetParameterValue(Element element, string parameterName)
+    {
+        var param = element.LookupParameter(parameterName);
+        if (param == null) return null;
+
+        return param.AsDouble();
     }
 
     public string GetName() => "RebarMind: Generate Rebar";
